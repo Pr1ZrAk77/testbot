@@ -40,20 +40,31 @@ async def teacher(update, context):
 
 
 async def student(update, context):
-    usernow = update.effective_user.mention_html()
+    usernow = update.effective_user.first_name
+    usersdb = []
     connection = sqlite3.connect('data/group.db')
     cursor = connection.cursor()
-
     cursor.execute('SELECT user FROM Users')
-    users = cursor.fetchall()
-    for user in users:
-        print(user)
-    if usernow in users:
-        print('111')
+    user = cursor.fetchall()
+    for user in user:
+        usersdb.append(user[0])
+    if usernow in usersdb:
         await update.message.reply_text("rhjcfdxbr")
-
+        return quiz
     connection.close()
-    await update.message.reply_text("Я пока не умею помогать... Я только ваше эхо.")
+
+
+async def quiz(update, context):
+    q = []
+    connection = sqlite3.connect('data/quiz.db')
+    cursor = connection.cursor()
+    cursor.execute(f'SELECT * FROM {namequiz}')
+    user = cursor.fetchall()
+    for user in user:
+        q.append(user)
+        await update.message.reply_text(user)
+    print(q)
+    connection.close()
 
 
 async def create_a_quiz(update, context):
