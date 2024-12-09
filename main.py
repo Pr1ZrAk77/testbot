@@ -480,7 +480,7 @@ async def viewtests(update, context):
     reply_keyboard = []
     connection = sqlite3.connect('data/quiz.db')
     cursor = connection.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     table = cursor.fetchall()
     for i in range(len(table)):
         if [table[i][0]] not in reply_keyboard:
