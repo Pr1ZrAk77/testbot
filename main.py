@@ -438,7 +438,6 @@ async def deletetestforgroup(update, context):
     cursor = connection.cursor()
     cursor.execute('DELETE FROM Users WHERE quizz = ? AND groupname = ?', (a, groupnamedel))
     connection.commit()
-    ##await update.message.reply_html(rf"выбери группу для которой хотите удалить тест", reply_markup=markup)
     connection.close()
     return ConversationHandler.END
 
