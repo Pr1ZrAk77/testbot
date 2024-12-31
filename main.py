@@ -183,7 +183,6 @@ async def quwest2(update, context):
         return quwest2
 
 
-
 async def viewgroups(update, context):
     reply_keyboard = []
     grname = []
