@@ -1,4 +1,6 @@
 import logging
+import json
+import os.path
 import sqlite3
 from telegram.ext import Application, MessageHandler, filters, Updater, ConversationHandler
 from telegram.ext import CommandHandler
@@ -11,9 +13,6 @@ from config import BOT_TOKEN
 ##)
 ##
 ##logger = logging.getLogger(__name__)
-
-
-res = 0
 
 
 async def start(update, context):
@@ -31,8 +30,38 @@ async def help_command(update, context):
 
 
 async def teacher(update, context):
-    global teachername
-    teachername = update.effective_user.username
+    usernow = update.effective_user.username
+    us = []
+    if os.path.exists('data/teachers.json'):
+        with open('data/teachers.json', 'r', encoding='utf-8') as outfile:
+            res = json.load(outfile)
+            for i in res:
+                us.append(i)
+            if usernow not in us:
+                res[usernow] = []
+                result = {
+                    'quiznow': '',
+                    'quizes': [],
+                    'groups': [],
+                    'groupnow': '',
+                    'count': 0
+                }
+                res[usernow].append(result)
+                with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+                    json.dump(res, outfile, ensure_ascii=False)
+    else:
+        data = {}
+        data[usernow] = []
+        result = {
+            'quiznow': '',
+            'quizes': [],
+            'groups': [],
+            'groupnow': '',
+            'count': 0
+        }
+        data[usernow].append(result)
+        with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+            json.dump(data, outfile, ensure_ascii=False)
     textb = '''
         Что хочешь сделать?\n
         Нажми /createtest для создания нового теста.\n
@@ -47,6 +76,38 @@ async def teacher(update, context):
 
 
 async def student(update, context):
+    usernow = update.effective_user.username
+    us = []
+    if os.path.exists('data/students.json'):
+        with open('data/students.json', 'r', encoding='utf-8') as outfile:
+            data = json.load(outfile)
+            for i in data:
+                us.append(i)
+            if usernow not in us:
+                data[usernow] = []
+                result = {
+                    'quiznow': '',
+                    'quizes': [],
+                    'groups': [],
+                    'groupnow': '',
+                    'count': 0
+                }
+                data[usernow].append(result)
+                with open('data/students.json', 'w', encoding='utf-8') as outfile:
+                    json.dump(data, outfile, ensure_ascii=False)
+    else:
+        res = {}
+        res[usernow] = []
+        result = {
+            'quiznow': '',
+            'quizes': [],
+            'groups': [],
+            'groupnow': '',
+            'count': 0
+        }
+        res[usernow].append(result)
+        with open('data/students.json', 'w', encoding='utf-8') as outfile:
+            json.dump(res, outfile, ensure_ascii=False)
     reply_keyboard = [['/Taketest'], ['/Viewresults']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
     await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
@@ -55,68 +116,111 @@ async def student(update, context):
 async def studentсhoice(update, context):
     reply_keyboard = []
     usernow = update.effective_user.username
-    usersdb = []
+    with open('data/students.json', 'r+', encoding='utf-8') as outfile:
+        resq = json.load(outfile)
+        usern = resq[usernow]
+        sl = usern[0]
+        sl['count'] = 0
+    with open('data/students.json', 'w', encoding='utf-8') as outfile:
+        json.dump(resq, outfile, ensure_ascii=False)
     connection = sqlite3.connect('data/group.db')
     cursor = connection.cursor()
-    cursor.execute('SELECT user, quizz FROM Users')
+    cursor.execute('SELECT quizz FROM Users WHERE user = ?', (usernow, ))
     userr = cursor.fetchall()
     for user in userr:
-        usersdb.append(user[0])
-        if [user[1]] not in reply_keyboard:
-            reply_keyboard.append([user[1]])
-    if usernow in usersdb:
+        if [user[0]] not in reply_keyboard:
+            reply_keyboard.append([user[0]])
+    if reply_keyboard != []:
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text('Выбери тест', reply_markup=markup)
         return quwest1
+    elif reply_keyboard == []:
+        await update.message.reply_text('Нет тестов')
+        reply_keyboard = [['/Taketest'], ['/Viewresults']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+        return ConversationHandler.END
     connection.close()
 
 
 async def stedentresult(update, context):
     reply_keyboard = []
     usernow = update.effective_user.username
-    usersdb = []
     connection = sqlite3.connect('data/group.db')
     cursor = connection.cursor()
-    cursor.execute('SELECT user, quizz FROM Users')
+    cursor.execute('SELECT quizz FROM Users WHERE user = ?', (usernow, ))
     userr = cursor.fetchall()
     for user in userr:
-        if [user[0]] not in usersdb:
-            usersdb.append(user[0])
-            if [user[1]] not in reply_keyboard:
-                reply_keyboard.append([user[1]])
-    if usernow in usersdb:
+        if [user[0]] not in reply_keyboard:
+            reply_keyboard.append([user[0]])
+    if reply_keyboard != []:
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text('Выбери тест', reply_markup=markup)
         return result
+    elif reply_keyboard == []:
+        await update.message.reply_text('Нет тестов')
+        reply_keyboard = [['/Taketest'], ['/Viewresults']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+        return ConversationHandler.END
     connection.close()
 
 
 async def result(update, context):
     usernamer = update.effective_user.username
     qnameres = update.message.text
-    connection = sqlite3.connect('data/result.db')
-    cursor = connection.cursor()
-    cursor.execute('SELECT quizres FROM Users WHERE user = ? AND quizname = ?', (usernamer, qnameres))
-    r = cursor.fetchall()
-    t = r[0][0]
-    connection.close()
-    await update.message.reply_text(rf'Ваш результат: {t / 10 * 100}%')
+    if os.path.exists('data/result.db'):
+        connection = sqlite3.connect('data/result.db')
+        cursor = connection.cursor()
+        cursor.execute('SELECT quizname FROM Users WHERE user = ?', (usernamer, ))
+        r = cursor.fetchall()
+        qres = []
+        for i in r:
+            if i[0] not in qres:
+                qres.append(i[0])
+        if qnameres in qres:
+            cursor.execute('SELECT quizres FROM Users WHERE user = ? AND quizname = ?', (usernamer, qnameres))
+            r = cursor.fetchall()
+            t = r[0][0]
+            connection.close()
+            await update.message.reply_text(rf'Ваш результат: {t / 10 * 100}%')
+        else:
+            await update.message.reply_html('Вы ещё не проходили тест')
+            reply_keyboard = [['/Taketest'], ['/Viewresults']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+            return ConversationHandler.END
+        reply_keyboard = [['/Taketest'], ['/Viewresults']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+        return ConversationHandler.END
+    else:
+        await update.message.reply_html('ошибка')
+        reply_keyboard = [['/Taketest'], ['/Viewresults']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+        return ConversationHandler.END
 
 
 async def quwest1(update, context):
-    global qname
-    global qu
-    global username
     r = 0
+    resqu = []
     qname = update.message.text
     username = update.effective_user.username
-    connection = sqlite3.connect('data/result.db')
-    cursor = connection.cursor()
-    cursor.execute('SELECT user FROM Users WHERE user = ?', (username, ))
-    resname = cursor.fetchall()
-    if resname != []:
-        if username == resname[0][0]:
+    if os.path.exists('data/result.db'):
+        connection = sqlite3.connect('data/result.db')
+        cursor = connection.cursor()
+        cursor.execute('SELECT quizname FROM Users WHERE user = ?', (username, ))
+        resn = cursor.fetchall()
+        for i in resn:
+            resqu.append(i[0])
+        connection.close()
+    if qname in resqu:
             await update.message.reply_text('Вы уже прошли тест')
+            reply_keyboard = [['/Taketest'], ['/Viewresults']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
+            return ConversationHandler.END
     else:
         connection2 = sqlite3.connect('data/result.db')
         cursor2 = connection2.cursor()
@@ -140,12 +244,26 @@ async def quwest1(update, context):
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(str(st[1]), reply_markup=markup)
         connection3.close()
-    connection.close()
+        with open('data/students.json', 'r+', encoding='utf-8') as outfile:
+            resq = json.load(outfile)
+            usern = resq[username]
+            sl = usern[0]
+            sl['quiznow'] = qname
+            sl['quizes'] = qu
+        with open('data/students.json', 'w', encoding='utf-8') as outfile:
+            json.dump(resq, outfile, ensure_ascii=False)
     return quwest2
 
 
 async def quwest2(update, context):
-    global res
+    username = update.effective_user.username
+    with open('data/students.json', 'r', encoding='utf-8') as outfile:
+        resq = json.load(outfile)
+        usern = resq[username]
+        sl = usern[0]
+        qname = sl.get('quiznow')
+        qu = sl.get('quizes')
+        res = sl.get('count')
     a = update.message.text
     connection = sqlite3.connect('data/quiz.db')
     cursor = connection.cursor()
@@ -180,6 +298,9 @@ async def quwest2(update, context):
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_text(str(st[1]), reply_markup=markup)
         res += 1
+        sl['count'] = res
+        with open('data/students.json', 'w', encoding='utf-8') as outfile:
+            json.dump(resq, outfile, ensure_ascii=False)
         return quwest2
 
 
