@@ -1,4 +1,5 @@
 import logging
+import random
 import json
 import os.path
 import sqlite3
@@ -49,6 +50,7 @@ async def teacher(update, context):
                     'ranswer': '',
                     'answer2': '',
                     'answer3': '',
+                    'flag': 0,
                 }
                 res[usernow].append(result)
                 with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
@@ -66,17 +68,18 @@ async def teacher(update, context):
             'ranswer': '',
             'answer2': '',
             'answer3': '',
+            'flag': 0,
         }
         data[usernow].append(result)
         with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
             json.dump(data, outfile, ensure_ascii=False)
     textb = '''
         Что хочешь сделать?\n
-        Нажми /createtest для создания нового теста.\n
-        Нажми /viewtests для просмотра существующих тестов.\n
-        Нажми /creategroup для создания новой группы.\n
-        Нажми /viewgroups для просмотра существующих групп.\n
-        Нажми /results для просмотра результата.\n
+        Нажмите  /createtest для создания нового теста.\n
+        Нажмите  /viewtests для просмотра существующих тестов.\n
+        Нажмите  /creategroup для создания новой группы.\n
+        Нажмите  /viewgroups для просмотра существующих групп.\n
+        Нажмите  /results для просмотра результата.\n
     '''
     reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
@@ -98,7 +101,9 @@ async def student(update, context):
                     'quizes': [],
                     'groups': [],
                     'groupnow': '',
-                    'count': 0
+                    'count': 0,
+                    'countq': 0,
+                    'ranswer': ''
                 }
                 data[usernow].append(result)
                 with open('data/students.json', 'w', encoding='utf-8') as outfile:
@@ -111,7 +116,9 @@ async def student(update, context):
             'quizes': [],
             'groups': [],
             'groupnow': '',
-            'count': 0
+            'count': 0,
+            'countq': 0,
+            'ranswer': ''
         }
         res[usernow].append(result)
         with open('data/students.json', 'w', encoding='utf-8') as outfile:
@@ -171,7 +178,7 @@ async def stedentresult(update, context):
                 reply_keyboard.append([user[0]])
         if reply_keyboard != []:
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-            await update.message.reply_text('Выбери тест', reply_markup=markup)
+            await update.message.reply_text('Выберите тест', reply_markup=markup)
             return result
         elif reply_keyboard == []:
             await update.message.reply_text('Нет тестов')
@@ -192,6 +199,12 @@ async def result(update, context):
     usernamer = update.effective_user.username
     qnameres = update.message.text
     if os.path.exists('data/result.db'):
+        connection3 = sqlite3.connect('data/quiz.db')
+        cursor3 = connection3.cursor()
+        cursor3.execute(f'SELECT * FROM {qnameres}')
+        qu = cursor3.fetchall()
+        countq = qu[-1][-6]
+        connection3.close()
         connection = sqlite3.connect('data/result.db')
         cursor = connection.cursor()
         cursor.execute('SELECT quizname FROM Users WHERE user = ?', (usernamer, ))
@@ -205,7 +218,7 @@ async def result(update, context):
             r = cursor.fetchall()
             t = r[0][0]
             connection.close()
-            await update.message.reply_text(rf'Ваш результат: {t / 10 * 100}%')
+            await update.message.reply_text(rf'Ваш результат: {t / countq * 100}%')
         else:
             await update.message.reply_html('Вы ещё не проходили тест')
             reply_keyboard = [['/Taketest'], ['/Viewresults']]
@@ -274,15 +287,28 @@ async def quwest1(update, context):
                 cursor3.execute(f'SELECT * FROM {qname}')
                 qu = cursor3.fetchall()
                 st = qu[0]
-                reply_keyboard = [[str(st[2])], [str(st[3])], [str(st[4])], [str(st[5])]]
-                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-                await update.message.reply_text(str(st[1]), reply_markup=markup)
+                connection3.close()
                 with open('data/students.json', 'r+', encoding='utf-8') as outfile:
                     resq = json.load(outfile)
                     usern = resq[username]
                     sl = usern[0]
                     sl['quiznow'] = qname
                     sl['quizes'] = qu
+                    sl['countq'] = qu[-1][-6]
+                outtext = str(st[1]) + '\n'
+                reply_keyboard = []
+                nums = [2, 3, 4, 5]
+                chars = ['a)', 'b)', 'c)', 'd)']
+                for i in range(4):
+                    t = random.randrange(len(nums))
+                    if st[nums[t]] == st[2]:
+                        sl['ranswer'] = chars[i]
+                        print(st[2])
+                    outtext += chars[i] + ' ' + str(st[nums[t]]) + '\n'
+                    reply_keyboard.append([chars[i]])
+                    nums.pop(t)
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+                await update.message.reply_text(outtext, reply_markup=markup)
                 with open('data/students.json', 'w', encoding='utf-8') as outfile:
                     json.dump(resq, outfile, ensure_ascii=False)
                 return quwest2
@@ -309,12 +335,10 @@ async def quwest2(update, context):
         qname = sl.get('quiznow')
         qu = sl.get('quizes')
         res = sl.get('count')
+        countq = sl.get('countq')
+        ranswer = sl.get('ranswer')
     a = update.message.text
-    connection = sqlite3.connect('data/quiz.db')
-    cursor = connection.cursor()
-    cursor.execute(f'SELECT answer1 FROM {qname}')
-    ta = cursor.fetchall()
-    if a == str(*ta[res]):
+    if a == ranswer:
         connection = sqlite3.connect('data/result.db')
         cursor = connection.cursor()
         cursor.execute('SELECT quizres FROM Users WHERE user = ? AND quizname = ?', (username, qname))
@@ -323,8 +347,13 @@ async def quwest2(update, context):
         cursor.execute('UPDATE Users SET quizres = ? WHERE user = ? AND quizname = ?', (t, username, qname))
         connection.commit()
         connection.close()
-    connection.close()
-    if res == 9:
+    if res == countq - 1:
+        sl['quiznow'] = ''
+        sl['quizes'] = ''
+        sl['ranswer'] = ''
+        sl['count'] = 0
+        with open('data/students.json', 'w', encoding='utf-8') as outfile:
+            json.dump(resq, outfile, ensure_ascii=False)
         connection = sqlite3.connect('data/result.db')
         cursor = connection.cursor()
         cursor.execute('SELECT quizres FROM Users WHERE user = ? AND quizname = ?', (username, qname))
@@ -332,16 +361,27 @@ async def quwest2(update, context):
         t = r[0][0]
         connection.close()
         await update.message.reply_text(rf'Поздравляю, вы прошли квиз!'
-                                        rf'Ваш результат: {t / 10 * 100}%')
+                                        rf'Ваш результат: {t / countq * 100}%')
         reply_keyboard = [['/Taketest'], ['/Viewresults']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
         return ConversationHandler.END
     else:
         st = qu[res + 1]
-        reply_keyboard = [[str(st[2])], [str(st[3])], [str(st[4])], [str(st[5])]]
+        outtext = str(st[1]) + '\n'
+        reply_keyboard = []
+        nums = [2, 3, 4, 5]
+        chars = ['a)', 'b)', 'c)', 'd)']
+        for i in range(4):
+            t = random.randrange(len(nums))
+            if st[nums[t]] == st[2]:
+                sl['ranswer'] = chars[i]
+                print(st[2])
+            outtext += chars[i] + ' ' + str(st[nums[t]]) + '\n'
+            reply_keyboard.append([chars[i]])
+            nums.pop(t)
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        await update.message.reply_text(str(st[1]), reply_markup=markup)
+        await update.message.reply_text(outtext, reply_markup=markup)
         res += 1
         sl['count'] = res
         with open('data/students.json', 'w', encoding='utf-8') as outfile:
@@ -383,8 +423,9 @@ async def viewgroups(update, context):
 async def viewgroup(update, context):
     groupname = update.message.text
     textout = '''
-    Нажми /deltestforgroup для того, чтобы убрать тест для группы.
-    Нажми /deluserfromgroup для удаления пользователя из группы.
+    Нажмите /deltestforgroup для того, чтобы убрать тест для группы.
+    Нажмите /deluserfromgroup для удаления пользователя из группы.
+    Нажмите /deletegroup для удаления пользователя из группы.
     '''
     name = []
     outtextname = ''
@@ -398,7 +439,7 @@ async def viewgroup(update, context):
             outtextname += names[i][0] + '\n'
     await update.message.reply_text(rf'{outtextname}')
     connection.close()
-    reply_keyboard = [['/deltestforgroup'], ['/deluserfromgroup']]
+    reply_keyboard = [['/deltestforgroup'], ['/deluserfromgroup'], ['/deletegroup']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     await update.message.reply_html(textout, reply_markup=markup)
     return ConversationHandler.END
@@ -424,10 +465,10 @@ async def deltestforgroup(update, context):
     connection.close()
     if flag:
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        await update.message.reply_html(rf"выбери группу для которой хотите удалить тест", reply_markup=markup)
+        await update.message.reply_html(rf"Выберите группу, для которой хотите удалить назначение теста", reply_markup=markup)
         return takenametest
     else:
-        await update.message.reply_html(rf"Ошибка")
+        await update.message.reply_html(rf"У вас нет групп")
         return ConversationHandler.END
 
 
@@ -450,7 +491,7 @@ async def takenametest(update, context):
         if [groups[i][0]] not in reply_keyboard:
             reply_keyboard.append([groups[i][0]])
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    await update.message.reply_html(rf"выбери название теста, который хотите удалить для группы {groupnamedel}",
+    await update.message.reply_html(rf"Выберите название теста, который хотите удалить для группы {groupnamedel}",
                                     reply_markup=markup)
     connection.close()
     return deletetestforgroup
@@ -491,11 +532,11 @@ async def deluserfromgroup(update, context):
             flag = 1
     if flag:
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        await update.message.reply_html(rf"выбери группу из которой хотите удалить пользователя", reply_markup=markup)
+        await update.message.reply_html(rf"Выберите группу, из которой хотите удалить пользователя", reply_markup=markup)
         connection.close()
         return choicegr
     else:
-        await update.message.reply_html(rf"Ошибка")
+        await update.message.reply_html(rf"У вас нет групп")
         return ConversationHandler.END
 
 
@@ -509,7 +550,7 @@ async def choicegr(update, context):
         sl['groupnow'] = groupname
     with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
         json.dump(resq, outfile, ensure_ascii=False)
-    await update.message.reply_html(rf"Введите имя пользователя, котого хотите удалить из группы")
+    await update.message.reply_html(rf"Введите имя пользователя, которого хотите удалить из группы")
     return usernamedel
 
 
@@ -526,8 +567,8 @@ async def usernamedel(update, context):
     cursor.execute('DELETE FROM Users WHERE user = ? AND groupname = ?', (usname, groupname))
     connection.commit()
     connection.close()
-    await update.message.reply_text(rf"Введите пользователя группы, котого хотите удалить из группы."
-                                    rf"Выйти из режима ввод вопроса нажмите /cancel.")
+    await update.message.reply_text(rf"Введите имя пользователя, которого хотите удалить из группы."
+                                    rf"Нажмите /cancel для выхода из режима Ввод вопроса")
     return usernamedel
 
 
@@ -547,7 +588,7 @@ async def viewtests(update, context):
         if [table[i][0]] not in reply_keyboard and table[i][0] in quizess:
             reply_keyboard.append([table[i][0]])
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    await update.message.reply_html(rf"выбери название теста, который хотите посмотреть", reply_markup=markup)
+    await update.message.reply_html(rf"Выберите название теста, который хотите посмотреть", reply_markup=markup)
     connection.close()
     return choiceview
 
@@ -573,8 +614,8 @@ async def choiceview(update, context):
     await update.message.reply_html(rf"{outtext}")
     reply_keyboard = [['/assignatest', '/removeatest']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    await update.message.reply_html(rf"Нажми /assignatest для назначения теста для группы./n"
-                                    rf"Нажми /removeatest для отмены теста для группы",
+    await update.message.reply_html(rf"Нажмите /assignatest для назначения теста для группы./n"
+                                    rf"Нажмите /removeatest для отмены теста для группы",
                                     reply_markup=markup)
     connection.close()
     return ConversationHandler.END
@@ -602,7 +643,7 @@ async def assignatest(update, context):
             if [groups[i][0]] not in reply_keyboard and groups[i][0] in groupst:
                 reply_keyboard.append([groups[i][0]])
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        await update.message.reply_html(rf"выбери группу для которой хотите назначить тест", reply_markup=markup)
+        await update.message.reply_html(rf"Выберите группу, для которой хотите назначить тест", reply_markup=markup)
         connection.close()
         return assigntestforgroup
 
@@ -650,7 +691,7 @@ async def removeatest(update, context):
             flag = 1
     if flag:
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        await update.message.reply_html(rf"выбери группу для которой хотите убрать тест", reply_markup=markup)
+        await update.message.reply_html(rf"Выберите группу, для которой хотите удалить назначение теста", reply_markup=markup)
         connection.close()
         return removetestforgroup
     else:
@@ -681,7 +722,7 @@ async def removetestforgroup(update, context):
 
 
 async def create_a_test(update, context):
-    textout = '''Нажми /Newquiz для создания квиза. \n Нажми /deletequize для удаления квиза.'''
+    textout = '''Нажмите /Newquiz для создания квиза. \n Нажмите /deletequize для удаления квиза.'''
     reply_keyboard = [['/Newquiz'], ['/deletequize']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     await update.message.reply_html(textout, reply_markup=markup)
@@ -701,12 +742,35 @@ async def newnamequiz(update, context):
         sl = usern[0]
         sl['quiznow'] = namequiz
         aa = sl['quizes']
-        aa.append(namequiz)
-        sl['quizes'] = aa
-    with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
-        json.dump(resq, outfile, ensure_ascii=False)
-    await update.message.reply_text(rf"Введите впорос № 1")
-    return newquestion
+        if namequiz not in aa:
+            aa.append(namequiz)
+            sl['quizes'] = aa
+            with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+                json.dump(resq, outfile, ensure_ascii=False)
+            await update.message.reply_text(rf"Введите количество вопросов(число)")
+            return newcountquiz
+        else:
+            await update.message.reply_text(rf"Вы уже создали тест с таким названием")
+            await update.message.reply_text(rf"Введите название квиза.")
+            return newnamequiz
+
+
+async def newcountquiz(update, context):
+    countq = update.message.text
+    if countq.isdigit():
+        usernow = update.effective_user.username
+        with open('data/teachers.json', 'r', encoding='utf-8') as outfile:
+            resq = json.load(outfile)
+            usern = resq[usernow]
+            sl = usern[0]
+            sl['count'] = countq
+        with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+            json.dump(resq, outfile, ensure_ascii=False)
+        await update.message.reply_text(rf"Введите вопрос № 1")
+        return newquestion
+    else:
+        await update.message.reply_text(rf"Введите количество вопросов(число)")
+        return newcountquiz
 
 
 async def newquestion(update, context):
@@ -777,7 +841,7 @@ async def answer4(update, context):
         a1 = sl.get('ranswer')
         a2 = sl.get('answer2')
         a3 = sl.get('answer3')
-        ##countqwest = sl.get('count')
+        countq = sl.get('count')
     connection = sqlite3.connect('data/quiz.db')
     cursor = connection.cursor()
     cursor.execute(f"""
@@ -795,17 +859,17 @@ async def answer4(update, context):
     connection.commit()
     cursor.execute(f'''SELECT id FROM {namequiz}''')
     c = cursor.fetchall()
-    countqwest = c[-1][0] + 1
+    countqwest = c[-1][0]
     connection.close()
-    if countqwest == 11:
+    if countqwest == int(countq):
         await update.message.reply_html(rf"Вы добавили новый тест!")
         textb = '''
                 Что хочешь сделать?\n
-                Нажми /createtest для создания нового теста.\n
-                Нажми /viewtests для просмотра существующих тестов.\n
-                Нажми /creategroup для создания новой группы.\n
-                Нажми /viewgroups для просмотра существующих групп.\n
-                Нажми /results для просмотра результата.\n
+                Нажмите /createtest для создания нового теста.\n
+                Нажмите /viewtests для просмотра существующих тестов.\n
+                Нажмите /creategroup для создания новой группы.\n
+                Нажмите /viewgroups для просмотра существующих групп.\n
+                Нажмите /results для просмотра результата.\n
             '''
         reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
@@ -819,11 +883,11 @@ async def answer4(update, context):
 async def cancel(update, context):
     textb = '''
             Что хочешь сделать?\n
-            Нажми /createtest для создания нового теста.\n
-            Нажми /viewtests для просмотра существующих тестов.\n
-            Нажми /creategroup для создания новой группы.\n
-            Нажми /viewgroups для просмотра существующих групп.\n
-            Нажми /results для просмотра результата.\n
+            Нажмите /createtest для создания нового теста.\n
+            Нажмите /viewtests для просмотра существующих тестов.\n
+            Нажмите /creategroup для создания новой группы.\n
+            Нажмите /viewgroups для просмотра существующих групп.\n
+            Нажмите /results для просмотра результата.\n
         '''
     reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
@@ -845,12 +909,25 @@ async def Newgroup(update, context):
         sl = usern[0]
         sl['groupnow'] = grname
         g = sl['groups']
-        g.append(grname)
-        sl['groups'] = g
-    with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
-        json.dump(resq, outfile, ensure_ascii=False)
-    await update.message.reply_text(rf"Введите название теста в котором должны учавствовать пользователи")
-    return addq
+        flag = sl.get('flag')
+        if grname not in g:
+            g.append(grname)
+            sl['groups'] = g
+            flag = 1
+            sl['flag'] = 1
+        if flag:
+            with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+                json.dump(resq, outfile, ensure_ascii=False)
+            await update.message.reply_text(rf"Введите название теста, в котором должны выполнить пользователи")
+            return addq
+        else:
+            sl['flag'] = 1
+            with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+                json.dump(resq, outfile, ensure_ascii=False)
+            await update.message.reply_text(rf"Вы уже создали группу с таким названием")
+            await update.message.reply_text(rf"Введите название группы.")
+            await update.message.reply_text(rf"Если вы хотите добавить пользователей в эту группу, то введите название группы еще раз")
+            return Newgroup
 
 
 async def addq(update, context):
@@ -891,7 +968,7 @@ async def adduser(update, context):
     connection.commit()
     connection.close()
     await update.message.reply_text(rf"Введите нового пользователя группы."
-                                    rf"Выйти из режима ввод пользователя нажмите /cancel.")
+                                    rf"Нажмите /cancel для выхода из режима Ввод пользователя")
     return adduser
 
 
@@ -918,7 +995,7 @@ async def deleteq(update, context):
     connection.commit()
     connection.close()
     await update.message.reply_text(rf"Введите название квиза, которой надо удалить."
-                                    rf"Выйти из режима ввод вопроса нажмите /cancel.")
+                                    rf"Нажмите /cancel для выхода из режима Ввод названия теста")
     return deleteq
 
 
@@ -946,8 +1023,7 @@ async def results(update, context):
     if flag:
         await update.message.reply_text(rf'{outgr}')
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        await update.message.reply_text(rf'Выберите группу,в которой хотите посмотреть результаты',
-                                        reply_markup=markup)
+        await update.message.reply_text(rf"Выберите группу, в которой хотите посмотреть результаты", reply_markup=markup)
         return viewresult
     else:
         await update.message.reply_text(rf'У вас нет групп')
@@ -982,10 +1058,10 @@ async def viewresult(update, context):
             return ConversationHandler.END
         else:
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            await update.message.reply_html('Выберите тест у которого хотите посмотреть результаты', reply_markup=markup)
+            await update.message.reply_html('Выберите тест, для которого хотите посмотреть результаты', reply_markup=markup)
             return viewresulttest
     else:
-        await update.message.reply_html('ошибка')
+        await update.message.reply_html('ошибка нет результатов')
         return ConversationHandler.END
 
 
@@ -998,6 +1074,12 @@ async def viewresulttest(update, context):
         groupname = sl.get('groupnow')
     qname = update.message.text
     if os.path.exists('data/result.db'):
+        connection3 = sqlite3.connect('data/quiz.db')
+        cursor3 = connection3.cursor()
+        cursor3.execute(f'SELECT * FROM {qname}')
+        qu = cursor3.fetchall()
+        countq = qu[-1][-6]
+        connection3.close()
         outt = ''
         connection = sqlite3.connect('data/result.db')
         cursor = connection.cursor()
@@ -1017,18 +1099,42 @@ async def viewresulttest(update, context):
         for i in r:
             if i[0] in qres:
                 outn.append(i[0])
-                outt += i[0] + ' ' + str(i[1]) + '\n'
+                outt += i[0] + ' ' + str(i[1] / countq * 100) + '%' + '\n'
         for i in qres:
             if i not in outn:
-                outt += i + ' ' + str(0) + '\n'
+                outt += i + ' ' + str(0) + '%' + '\n'
         await update.message.reply_html(outt)
         return ConversationHandler.END
     else:
         await update.message.reply_html('ошибка')
-        ##reply_keyboard = [['/Taketest'], ['/Viewresults']]
-        ##markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
-        ##await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
         return ConversationHandler.END
+
+
+async def deletegroup(update, context):
+    await update.message.reply_text(rf"Введите название группы, которую надо удалить")
+    return deleteg
+
+
+async def deleteg(update, context):
+    grname = update.message.text
+    usernow = update.effective_user.username
+    with open('data/teachers.json', 'r', encoding='utf-8') as outfile:
+        resq = json.load(outfile)
+        usern = resq[usernow]
+        sl = usern[0]
+        q = sl.get('groups')
+        q.remove(grname)
+        sl['groups'] = q
+    with open('data/teachers.json', 'w', encoding='utf-8') as outfile:
+        json.dump(resq, outfile, ensure_ascii=False)
+    connection = sqlite3.connect('data/group.db')
+    cursor = connection.cursor()
+    cursor.execute('DELETE FROM Users WHERE groupname = ?', (grname,))
+    connection.commit()
+    connection.close()
+    await update.message.reply_text(rf"Введите название группы, которую надо удалить"
+                                    rf"Нажмите /cancel для выхода из режима Ввод названия группы")
+    return deleteg
 
 
 def main():
@@ -1044,6 +1150,17 @@ def main():
         states={
             viewresult: [MessageHandler(filters.TEXT & ~filters.COMMAND, viewresult)],
             viewresulttest: [MessageHandler(filters.TEXT & ~filters.COMMAND, viewresulttest)],
+        },
+
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler)
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('deletegroup', deletegroup)],
+
+        states={
+            deleteg: [MessageHandler(filters.TEXT & ~filters.COMMAND, deleteg)],
         },
 
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -1149,6 +1266,7 @@ def main():
         states={
             newnamequiz: [MessageHandler(filters.TEXT & ~filters.COMMAND, newnamequiz)],
             newquestion: [MessageHandler(filters.TEXT & ~filters.COMMAND, newquestion)],
+            newcountquiz: [MessageHandler(filters.TEXT & ~filters.COMMAND, newcountquiz)],
             answer1: [MessageHandler(filters.TEXT & ~filters.COMMAND, answer1)],
             answer2: [MessageHandler(filters.TEXT & ~filters.COMMAND, answer2)],
             answer3: [MessageHandler(filters.TEXT & ~filters.COMMAND, answer3)],
