@@ -218,7 +218,7 @@ async def result(update, context):
             r = cursor.fetchall()
             t = r[0][0]
             connection.close()
-            await update.message.reply_text(rf'Ваш результат: {t / countq * 100}%')
+            await update.message.reply_text(rf'Ваш результат: {round(t / countq * 100, 2)}%')
         else:
             await update.message.reply_html('Вы ещё не проходили тест')
             reply_keyboard = [['/Taketest'], ['/Viewresults']]
@@ -303,7 +303,6 @@ async def quwest1(update, context):
                     t = random.randrange(len(nums))
                     if st[nums[t]] == st[2]:
                         sl['ranswer'] = chars[i]
-                        print(st[2])
                     outtext += chars[i] + ' ' + str(st[nums[t]]) + '\n'
                     reply_keyboard.append([chars[i]])
                     nums.pop(t)
@@ -361,7 +360,7 @@ async def quwest2(update, context):
         t = r[0][0]
         connection.close()
         await update.message.reply_text(rf'Поздравляю, вы прошли квиз!'
-                                        rf'Ваш результат: {t / countq * 100}%')
+                                        rf'Ваш результат: {round(t / countq * 100, 2)}%')
         reply_keyboard = [['/Taketest'], ['/Viewresults']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         await update.message.reply_html('Выберите, что вы хотите сделать', reply_markup=markup)
@@ -376,7 +375,6 @@ async def quwest2(update, context):
             t = random.randrange(len(nums))
             if st[nums[t]] == st[2]:
                 sl['ranswer'] = chars[i]
-                print(st[2])
             outtext += chars[i] + ' ' + str(st[nums[t]]) + '\n'
             reply_keyboard.append([chars[i]])
             nums.pop(t)
@@ -417,6 +415,17 @@ async def viewgroups(update, context):
         return viewgroup
     else:
         await update.message.reply_text(rf'У вас нет групп')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -469,6 +478,17 @@ async def deltestforgroup(update, context):
         return takenametest
     else:
         await update.message.reply_html(rf"У вас нет групп")
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -510,6 +530,17 @@ async def deletetestforgroup(update, context):
     cursor.execute('DELETE FROM Users WHERE quizz = ? AND groupname = ?', (a, groupnamedel))
     connection.commit()
     connection.close()
+    textb = '''
+            Что хочешь сделать?\n
+            Нажмите  /createtest для создания нового теста.\n
+            Нажмите  /viewtests для просмотра существующих тестов.\n
+            Нажмите  /creategroup для создания новой группы.\n
+            Нажмите  /viewgroups для просмотра существующих групп.\n
+            Нажмите  /results для просмотра результата.\n
+        '''
+    reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    await update.message.reply_html(rf"{textb}", reply_markup=markup)
     return ConversationHandler.END
 
 
@@ -537,6 +568,17 @@ async def deluserfromgroup(update, context):
         return choicegr
     else:
         await update.message.reply_html(rf"У вас нет групп")
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -584,16 +626,21 @@ async def viewtests(update, context):
     cursor = connection.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     table = cursor.fetchall()
+    outtext = 'Ваши тесты:' + '\n'
     for i in range(len(table)):
         if [table[i][0]] not in reply_keyboard and table[i][0] in quizess:
             reply_keyboard.append([table[i][0]])
+            outtext += str(table[i][0]) + '\n'
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    await update.message.reply_html(rf"Выберите название теста, который хотите посмотреть", reply_markup=markup)
+    await update.message.reply_html(rf"Выберите название теста, который хотите посмотреть")
+    await update.message.reply_html(outtext, reply_markup=markup)
     connection.close()
     return choiceview
 
 
 async def choiceview(update, context):
+    outtextbot = 'Нажмите /assignatest для назначения теста для группы. \n' + \
+              'Нажмите /removeatest для отмены теста для группы'
     testnamechoise = update.message.text
     usernow = update.effective_user.username
     with open('data/teachers.json', 'r', encoding='utf-8') as outfile:
@@ -614,9 +661,7 @@ async def choiceview(update, context):
     await update.message.reply_html(rf"{outtext}")
     reply_keyboard = [['/assignatest', '/removeatest']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    await update.message.reply_html(rf"Нажмите /assignatest для назначения теста для группы./n"
-                                    rf"Нажмите /removeatest для отмены теста для группы",
-                                    reply_markup=markup)
+    await update.message.reply_html(outtextbot, reply_markup=markup)
     connection.close()
     return ConversationHandler.END
 
@@ -632,6 +677,17 @@ async def assignatest(update, context):
         json.dump(resq, outfile, ensure_ascii=False)
     if groupst == []:
         await update.message.reply_text(rf'У вас нет групп')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
     else:
         reply_keyboard = []
@@ -667,6 +723,17 @@ async def assigntestforgroup(update, context):
         cursor.execute('INSERT INTO Users (user, quizz, groupname) VALUES (?, ?, ?)', (i, testnamechoise, a))
     connection.commit()
     connection.close()
+    textb = '''
+            Что хочешь сделать?\n
+            Нажмите  /createtest для создания нового теста.\n
+            Нажмите  /viewtests для просмотра существующих тестов.\n
+            Нажмите  /creategroup для создания новой группы.\n
+            Нажмите  /viewgroups для просмотра существующих групп.\n
+            Нажмите  /results для просмотра результата.\n
+        '''
+    reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    await update.message.reply_html(rf"{textb}", reply_markup=markup)
     return ConversationHandler.END
 
 
@@ -696,6 +763,17 @@ async def removeatest(update, context):
         return removetestforgroup
     else:
         await update.message.reply_text(rf'Тест не назначен')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -718,6 +796,17 @@ async def removetestforgroup(update, context):
         cursor.execute('DELETE FROM Users WHERE user = ? AND quizz = ? AND groupname = ?', (i, testnamechoise, a))
     connection.commit()
     connection.close()
+    textb = '''
+            Что хочешь сделать?\n
+            Нажмите  /createtest для создания нового теста.\n
+            Нажмите  /viewtests для просмотра существующих тестов.\n
+            Нажмите  /creategroup для создания новой группы.\n
+            Нажмите  /viewgroups для просмотра существующих групп.\n
+            Нажмите  /results для просмотра результата.\n
+        '''
+    reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+    await update.message.reply_html(rf"{textb}", reply_markup=markup)
     return ConversationHandler.END
 
 
@@ -876,6 +965,7 @@ async def answer4(update, context):
         await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
     else:
+        countqwest += 1
         await update.message.reply_text(rf"Введите вопрос № {countqwest}")
         return newquestion
 
@@ -1027,6 +1117,17 @@ async def results(update, context):
         return viewresult
     else:
         await update.message.reply_text(rf'У вас нет групп')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -1055,6 +1156,17 @@ async def viewresult(update, context):
                 outt += i[0] + '/n'
         if reply_keyboard == []:
             await update.message.reply_html('У вас нет тестов')
+            textb = '''
+                    Что хочешь сделать?\n
+                    Нажмите  /createtest для создания нового теста.\n
+                    Нажмите  /viewtests для просмотра существующих тестов.\n
+                    Нажмите  /creategroup для создания новой группы.\n
+                    Нажмите  /viewgroups для просмотра существующих групп.\n
+                    Нажмите  /results для просмотра результата.\n
+                '''
+            reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+            await update.message.reply_html(rf"{textb}", reply_markup=markup)
             return ConversationHandler.END
         else:
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
@@ -1062,6 +1174,17 @@ async def viewresult(update, context):
             return viewresulttest
     else:
         await update.message.reply_html('ошибка нет результатов')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
@@ -1099,14 +1222,36 @@ async def viewresulttest(update, context):
         for i in r:
             if i[0] in qres:
                 outn.append(i[0])
-                outt += i[0] + ' ' + str(i[1] / countq * 100) + '%' + '\n'
+                outt += i[0] + ' ' + str(round(i[1] / countq * 100, 2)) + '%' + '\n'
         for i in qres:
             if i not in outn:
                 outt += i + ' ' + str(0) + '%' + '\n'
         await update.message.reply_html(outt)
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
     else:
         await update.message.reply_html('ошибка')
+        textb = '''
+                Что хочешь сделать?\n
+                Нажмите  /createtest для создания нового теста.\n
+                Нажмите  /viewtests для просмотра существующих тестов.\n
+                Нажмите  /creategroup для создания новой группы.\n
+                Нажмите  /viewgroups для просмотра существующих групп.\n
+                Нажмите  /results для просмотра результата.\n
+            '''
+        reply_keyboard = [['/createtest'], ['/viewtests'], ['/creategroup'], ['/viewgroups'], ['/results']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+        await update.message.reply_html(rf"{textb}", reply_markup=markup)
         return ConversationHandler.END
 
 
